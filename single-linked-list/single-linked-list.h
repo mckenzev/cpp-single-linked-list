@@ -3,6 +3,7 @@
 #include <compare>
 #include <cstddef>
 #include <exception>
+#include <stdexcept>
 #include <iterator>
 
 template <typename Type>
@@ -34,7 +35,7 @@ class SingleLinkedList {
         }
 
         [[nodiscard]] constexpr bool operator!=(const BasicIterator<const Type>& rhs) const noexcept {
-            return !(*this == rhs);
+            return node_ != rhs.node_;
         }
 
         [[nodiscard]] constexpr bool operator==(const BasicIterator<Type>& rhs) const noexcept {
@@ -42,25 +43,41 @@ class SingleLinkedList {
         }
 
         [[nodiscard]] constexpr bool operator!=(const BasicIterator<Type>& rhs) const noexcept {
-            return !(*this == rhs);
+            return node_ != rhs.node_;
         }
 
-        BasicIterator& operator++() noexcept {
+        BasicIterator& operator++() {
+            if (node_ == nullptr) {
+                throw std::range_error("An attempt to increment the end iterator");
+            }
+
             node_ = node_->next_node;
             return *this;
         }
         
-        BasicIterator operator++(int) noexcept {
+        BasicIterator operator++(int) {
+            if (node_ == nullptr) {
+                throw std::range_error("An attempt to increment the end iterator");
+            }
+
             BasicIterator old = *this;
             ++(*this);
             return old;
         }
 
-        [[nodiscard]] reference operator*() const noexcept {
+        [[nodiscard]] reference operator*() const {
+            if (node_ == nullptr) {
+                throw std::range_error("An attempt to dereference the end iterator");
+            }
+
             return node_->value;
         }
 
-        [[nodiscard]] pointer operator->() const noexcept {
+        [[nodiscard]] pointer operator->() const {
+            if (node_ == nullptr) {
+                throw std::range_error("An attempt to dereference the end iterator");
+            }
+
             return &(node_->value);
         }
 
@@ -111,6 +128,7 @@ public:
     ~SingleLinkedList() {
         Clear();
     }
+
     // Возвращает количество элементов в списке
     [[nodiscard]] size_t GetSize() const noexcept {
         return size_;
@@ -126,7 +144,11 @@ public:
         ++size_;
     }
 
-    void PopFront() noexcept {
+    void PopFront() {
+        if (size_ == 0) {
+            throw std::logic_error("An attempt to erase in empty list");
+        }
+
         EraseAfter(before_begin());
     }
 
@@ -136,6 +158,10 @@ public:
      * Если при создании элемента будет выброшено исключение, список останется в прежнем состоянии
      */
     Iterator InsertAfter(ConstIterator pos, const Type& value) {
+        if (pos.node_ == nullptr) {
+            throw std::logic_error("An attempt to insert after end iterator");
+        }
+
         Node* new_node = new Node(value, pos.node_->next_node);
         pos.node_->next_node = new_node;
         ++size_;
@@ -146,7 +172,15 @@ public:
      * Удаляет элемент, следующий за pos.
      * Возвращает итератор на элемент, следующий за удалённым
      */
-    Iterator EraseAfter(ConstIterator pos) noexcept {
+    Iterator EraseAfter(ConstIterator pos) {
+        if (pos.node_ == nullptr) {
+            throw std::logic_error("An attempt to erase after end iterator");
+        }
+
+        if (pos.node_->next_node == nullptr) {
+            throw std::logic_error("An attempt to erase the end iterator");
+        }
+
         Node* to_del = pos.node_->next_node;
         pos.node_->next_node = pos.node_->next_node->next_node;
         delete to_del;
@@ -170,11 +204,22 @@ public:
     }
 
     bool constexpr operator==(const SingleLinkedList& other) const noexcept {
-        return size_ == other.size_ && std::equal(cbegin(), cend(), other.cbegin());
+        // Сравнивание с самим собой
+        if (&other == this) {
+            return true;
+        }
+
+        // разный размер свидетельствует о неравенстве
+        if (size_ != other.size_) {
+            return false;
+        }
+
+        // Четвертый параметр не нужен, т.к. есть гарантия равенства размеров
+        return std::equal(cbegin(), cend(), other.cbegin());
     }
 
     auto constexpr operator<=>(const SingleLinkedList& other) const noexcept {
-        return std::lexicographical_compare_three_way(begin(), end(), other.begin(), other.end());
+        return std::lexicographical_compare_three_way(cbegin(), cend(), other.cbegin(), other.cend());
     }
 
     SingleLinkedList& operator=(const SingleLinkedList& other) {
@@ -200,11 +245,7 @@ public:
     // Возвращает константный итератор, указывающий на позицию перед первым элементом односвязного списка.
     // Разыменовывать этот итератор нельзя - попытка разыменования приведёт к неопределённому поведению
     [[nodiscard]] ConstIterator before_begin() const noexcept {
-        return ConstIterator(const_cast<Node*>(&head_));
-    }
-
-    [[nodiscard]] ConstIterator begin() const noexcept {
-        return ConstIterator(head_.next_node);
+        return cbefore_begin();
     }
 
     [[nodiscard]] Iterator begin() noexcept {
@@ -215,8 +256,8 @@ public:
         return ConstIterator(head_.next_node);
     }
 
-    [[nodiscard]] ConstIterator end() const noexcept {
-        return ConstIterator(nullptr);
+    [[nodiscard]] ConstIterator begin() const noexcept {
+        return cbegin();
     }
 
     [[nodiscard]] Iterator end() noexcept {
@@ -225,6 +266,10 @@ public:
 
     [[nodiscard]] ConstIterator cend() const noexcept {
         return ConstIterator(nullptr);
+    }
+
+    [[nodiscard]] ConstIterator end() const noexcept {
+        return cend();
     }
 
 private:
