@@ -64,7 +64,7 @@ class SingleLinkedList {
             return &(node_->value);
         }
 
-        BasicIterator& operator = (const BasicIterator<std::remove_const_t<ValueType>>& other) {
+        BasicIterator& operator=(const BasicIterator<std::remove_const_t<ValueType>>& other) {
             node_ = other.node_;
             return *this;
         }
@@ -87,7 +87,7 @@ public:
     SingleLinkedList(std::initializer_list<Type> items) {
         SingleLinkedList tmp;
         Node** next_node = &tmp.head_.next_node;
-        for (auto& item : items) {
+        for (const auto& item : items) {
             *next_node = new Node(item, nullptr);
             next_node = &((*next_node)->next_node);
             ++tmp.size_;
@@ -99,7 +99,7 @@ public:
     SingleLinkedList(const SingleLinkedList& other) {
         SingleLinkedList tmp;
         Node** next_node = &tmp.head_.next_node;
-        for (auto& item : other) {
+        for (const auto& item : other) {
             *next_node = new Node(item, nullptr);
             next_node = &((*next_node)->next_node);
             ++tmp.size_;
@@ -188,7 +188,6 @@ public:
     // Возвращает итератор, указывающий на позицию перед первым элементом односвязного списка.
     // Разыменовывать этот итератор нельзя - попытка разыменования приведёт к неопределённому поведению
     [[nodiscard]] Iterator before_begin() noexcept {
-        
         return Iterator(&head_);
     }
 
